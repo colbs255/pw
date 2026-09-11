@@ -49,6 +49,15 @@ enum Command {
         #[arg(short, long)]
         clipboard: bool,
     },
+    /// Rename a password entry
+    #[command(visible_alias = "rename")]
+    Mv {
+        old_name: String,
+        new_name: String,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// Remove a password entry
     #[command(visible_alias = "rm")]
     Remove { name: String },
@@ -67,6 +76,11 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name, clipboard } => commands::get(&name, clipboard),
+        Command::Mv {
+            old_name,
+            new_name,
+            force,
+        } => commands::mv(&old_name, &new_name, force),
         Command::Remove { name } => commands::remove(&name),
     }
 }
