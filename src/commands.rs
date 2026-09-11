@@ -3,11 +3,11 @@ use crate::store::{build_entry_path, get_entry, list_entries, put_entry, remove_
 use anyhow::{Result, bail};
 use std::io::{self, Write};
 
-pub(crate) fn put(name: &str) -> Result<()> {
+pub(crate) fn put(name: &str, force: bool) -> Result<()> {
     let store_dir = store_dir()?;
     let identity_path = identity_path()?;
     let path = build_entry_path(&store_dir, name)?;
-    if path.exists() && !confirm(&format!("{name} already exists. Overwrite?"))? {
+    if path.exists() && !force && !confirm(&format!("{name} already exists. Overwrite?"))? {
         println!("aborted");
         return Ok(());
     }
