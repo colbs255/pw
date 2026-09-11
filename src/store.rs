@@ -119,6 +119,21 @@ pub(crate) fn move_entry(store_dir: &Path, old_name: &str, new_name: &str) -> Re
     Ok(())
 }
 
+/// Copies `<store_dir>/<old_name>.age` to `<store_dir>/<new_name>.age`,
+/// creating parent dirs for the new name, leaving the old entry in place.
+pub(crate) fn copy_entry(store_dir: &Path, old_name: &str, new_name: &str) -> Result<()> {
+    let old_path = build_entry_path(store_dir, old_name)?;
+    if !old_path.exists() {
+        bail!("no entry named {old_name}");
+    }
+    let new_path = build_entry_path(store_dir, new_name)?;
+
+    fs::create_dir_all(new_path.parent().expect("entry paths always have a parent"))?;
+    fs::copy(&old_path, &new_path)
+        .with_context(|| format!("copying {} to {}", old_path.display(), new_path.display()))?;
+    Ok(())
+}
+
 /// Removes now-empty ancestor directories of a just-deleted entry, up to (not
 /// including) the store root, so nested entries don't leave empty folders behind.
 fn prune_empty_parents(path: &Path, store_dir: &Path) {
@@ -356,5 +371,37 @@ mod tests {
     fn move_entry_missing_source_errors() {
         let store = tempfile::tempdir().unwrap();
         assert!(move_entry(store.path(), "nope", "new").is_err());
+    }
+
+    #[test]
+    fn copy_entry_duplicates_and_preserves_original() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "old", "hunter2").unwrap();
+
+        copy_entry(store.path(), "old", "new").unwrap();
+
+        assert_eq!(get_entry(store.path(), &key, "old").unwrap(), "hunter2");
+        assert_eq!(get_entry(store.path(), &key, "new").unwrap(), "hunter2");
+    }
+
+    #[test]
+    fn copy_entry_creates_new_parent_dirs() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "flat", "p1").unwrap();
+
+        copy_entry(store.path(), "flat", "github/nested").unwrap();
+
+        assert_eq!(
+            get_entry(store.path(), &key, "github/nested").unwrap(),
+            "p1"
+        );
+    }
+
+    #[test]
+    fn copy_entry_missing_source_errors() {
+        let store = tempfile::tempdir().unwrap();
+        assert!(copy_entry(store.path(), "nope", "new").is_err());
     }
 }
