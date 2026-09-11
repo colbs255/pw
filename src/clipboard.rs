@@ -1,27 +1,46 @@
 use anyhow::{Context, Result};
 use arboard::Clipboard;
-use std::thread;
 use std::time::Duration;
 
-const CLEAR_AFTER: Duration = Duration::from_secs(45);
+const AVAILABLE_FOR: Duration = Duration::from_secs(45);
 
-/// Copies `text` to the clipboard, then blocks until `CLEAR_AFTER` elapses
-/// and clears it, so a password doesn't linger there indefinitely. Skips
-/// the clear if the clipboard no longer holds `text` (the user copied
-/// something else in the meantime).
-pub(crate) fn copy_with_timeout(text: &str) -> Result<()> {
+/// Copies `text` to the clipboard.
+///
+/// On Linux/BSD the clipboard is "hosted" by the process that set it, and
+/// its contents disappear the moment that process exits, so this blocks
+/// and keeps serving paste requests for `AVAILABLE_FOR`, or until the user
+/// copies something else, whichever comes first. macOS and Windows own the
+/// clipboard at the OS level and don't have this problem, so there this
+/// copies and returns immediately.
+#[cfg(all(
+    unix,
+    not(any(target_os = "macos", target_os = "android", target_os = "emscripten"))
+))]
+pub(crate) fn copy(text: &str) -> Result<()> {
+    use arboard::SetExtLinux;
+    use std::time::Instant;
+
+    let mut clipboard = Clipboard::new().context("opening clipboard")?;
+    println!(
+        "copied to clipboard, available for {}s or until overwritten (ctrl-c to exit early)",
+        AVAILABLE_FOR.as_secs()
+    );
+    clipboard
+        .set()
+        .wait_until(Instant::now() + AVAILABLE_FOR)
+        .text(text.to_string())
+        .context("copying to clipboard")
+}
+
+#[cfg(not(all(
+    unix,
+    not(any(target_os = "macos", target_os = "android", target_os = "emscripten"))
+)))]
+pub(crate) fn copy(text: &str) -> Result<()> {
     let mut clipboard = Clipboard::new().context("opening clipboard")?;
     clipboard
         .set_text(text.to_string())
         .context("copying to clipboard")?;
-    println!(
-        "copied to clipboard, clearing in {}s (ctrl-c to exit without waiting)",
-        CLEAR_AFTER.as_secs()
-    );
-
-    thread::sleep(CLEAR_AFTER);
-    if clipboard.get_text().ok().as_deref() == Some(text) {
-        clipboard.clear().context("clearing clipboard")?;
-    }
+    println!("copied to clipboard");
     Ok(())
 }

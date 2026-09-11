@@ -75,7 +75,7 @@ pub(crate) fn find(pattern: &str) -> Result<()> {
 pub(crate) fn get(name: &str, clipboard: bool) -> Result<()> {
     let password = get_entry(&store_dir()?, &identity_path()?, name)?;
     if clipboard {
-        crate::clipboard::copy_with_timeout(&password)?;
+        crate::clipboard::copy(&password)?;
     } else {
         println!("{password}");
     }
