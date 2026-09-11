@@ -18,18 +18,40 @@ const AVAILABLE_FOR: Duration = Duration::from_secs(45);
 ))]
 pub(crate) fn copy(text: &str) -> Result<()> {
     use arboard::SetExtLinux;
-    use std::time::Instant;
+    use std::sync::mpsc;
+    use std::thread;
 
-    let mut clipboard = Clipboard::new().context("opening clipboard")?;
+    // `SetExtLinux::wait_until` only really blocks on X11: arboard's Wayland
+    // backend treats any deadline other than "forever" as "don't wait at all",
+    // so it hands the clipboard off to a thread and returns immediately. If
+    // this function then returned too, the process would exit and take that
+    // thread down with it before anyone could paste. Instead, run the
+    // (properly-blocking, on both backends) `wait()` on its own thread and
+    // bound it ourselves, so exiting this process is always what ends up
+    // clearing the clipboard, whether that's because AVAILABLE_FOR elapsed or
+    // because the clipboard was overwritten first.
+    let text = text.to_string();
+    let (overwritten_tx, overwritten_rx) = mpsc::channel();
+    let server = thread::spawn(move || -> Result<()> {
+        let mut clipboard = Clipboard::new().context("opening clipboard")?;
+        let result = clipboard
+            .set()
+            .wait()
+            .text(text)
+            .context("copying to clipboard");
+        let _ = overwritten_tx.send(());
+        result
+    });
+
     println!(
         "copied to clipboard, available for {}s or until overwritten (ctrl-c to exit early)",
         AVAILABLE_FOR.as_secs()
     );
-    clipboard
-        .set()
-        .wait_until(Instant::now() + AVAILABLE_FOR)
-        .text(text.to_string())
-        .context("copying to clipboard")
+
+    if overwritten_rx.recv_timeout(AVAILABLE_FOR).is_ok() {
+        return server.join().expect("clipboard server thread panicked");
+    }
+    Ok(())
 }
 
 #[cfg(not(all(
