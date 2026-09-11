@@ -1,4 +1,3 @@
-mod clipboard;
 mod commands;
 mod identity;
 mod password;
@@ -43,12 +42,7 @@ enum Command {
     /// List password entries whose name contains a pattern
     Find { pattern: String },
     /// Print a password entry
-    Get {
-        name: String,
-        /// Copy to the clipboard instead of printing, clearing it after 45s
-        #[arg(short, long)]
-        clipboard: bool,
-    },
+    Get { name: String },
     /// Rename a password entry
     #[command(visible_alias = "rename")]
     Mv {
@@ -75,7 +69,7 @@ fn main() -> Result<()> {
         } => commands::generate(&name, length, no_symbols, force),
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
-        Command::Get { name, clipboard } => commands::get(&name, clipboard),
+        Command::Get { name } => commands::get(&name),
         Command::Mv {
             old_name,
             new_name,
