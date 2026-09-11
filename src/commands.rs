@@ -1,7 +1,8 @@
 use crate::password::generate_password;
 use crate::paths::{identity_path, store_dir};
 use crate::store::{
-    build_entry_path, find_entries, get_entry, list_entries, move_entry, put_entry, remove_entry,
+    build_entry_path, copy_entry, find_entries, get_entry, list_entries, move_entry, put_entry,
+    remove_entry, remove_group,
 };
 use anyhow::{Result, bail};
 use std::io::{self, Write};
@@ -78,6 +79,23 @@ pub(crate) fn get(name: &str) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn copy(old_name: &str, new_name: &str, force: bool) -> Result<()> {
+    let store_dir = store_dir()?;
+    let old_path = build_entry_path(&store_dir, old_name)?;
+    if !old_path.exists() {
+        bail!("no entry named {old_name}");
+    }
+    let new_path = build_entry_path(&store_dir, new_name)?;
+    if !confirm_overwrite(&new_path, new_name, force)? {
+        println!("aborted");
+        return Ok(());
+    }
+
+    copy_entry(&store_dir, old_name, new_name)?;
+    println!("copied {old_name} to {new_name}");
+    Ok(())
+}
+
 pub(crate) fn mv(old_name: &str, new_name: &str, force: bool) -> Result<()> {
     let store_dir = store_dir()?;
     let old_path = build_entry_path(&store_dir, old_name)?;
@@ -95,17 +113,41 @@ pub(crate) fn mv(old_name: &str, new_name: &str, force: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn remove(name: &str) -> Result<()> {
+pub(crate) fn remove(name: &str, recursive: bool) -> Result<()> {
     let store_dir = store_dir()?;
     let path = build_entry_path(&store_dir, name)?;
-    if !path.exists() {
+    if path.exists() {
+        if !confirm(&format!("remove {name}?"))? {
+            println!("aborted");
+            return Ok(());
+        }
+        remove_entry(&store_dir, name)?;
+        println!("removed {name}");
+        return Ok(());
+    }
+
+    let prefix = format!("{name}/");
+    let group_entries: Vec<String> = list_entries(&store_dir)?
+        .into_iter()
+        .filter(|entry| entry.starts_with(&prefix))
+        .collect();
+    if group_entries.is_empty() {
         bail!("no entry named {name}");
     }
-    if !confirm(&format!("remove {name}?"))? {
+    if !recursive {
+        bail!(
+            "{name} is a group with {} entries; use --recursive to remove it",
+            group_entries.len()
+        );
+    }
+    if !confirm(&format!(
+        "remove {name} and its {} entries?",
+        group_entries.len()
+    ))? {
         println!("aborted");
         return Ok(());
     }
-    remove_entry(&store_dir, name)?;
+    remove_group(&store_dir, name)?;
     println!("removed {name}");
     Ok(())
 }

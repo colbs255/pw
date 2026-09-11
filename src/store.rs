@@ -3,7 +3,7 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn build_entry_path(store_dir: &Path, name: &str) -> Result<PathBuf> {
+fn build_path(store_dir: &Path, name: &str) -> Result<PathBuf> {
     if name.is_empty() {
         bail!("invalid entry name: {name:?}");
     }
@@ -15,6 +15,11 @@ pub(crate) fn build_entry_path(store_dir: &Path, name: &str) -> Result<PathBuf> 
         }
         path.push(segment);
     }
+    Ok(path)
+}
+
+pub(crate) fn build_entry_path(store_dir: &Path, name: &str) -> Result<PathBuf> {
+    let mut path = build_path(store_dir, name)?;
     path.set_extension("age");
     Ok(path)
 }
@@ -102,6 +107,18 @@ pub(crate) fn remove_entry(store_dir: &Path, name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Deletes the directory `<store_dir>/<name>` and everything under it, then
+/// prunes any now-empty ancestor directories.
+pub(crate) fn remove_group(store_dir: &Path, name: &str) -> Result<()> {
+    let path = build_path(store_dir, name)?;
+    if !path.is_dir() {
+        bail!("no group named {name}");
+    }
+    fs::remove_dir_all(&path).with_context(|| format!("removing {}", path.display()))?;
+    prune_empty_parents(&path, store_dir);
+    Ok(())
+}
+
 /// Renames `<store_dir>/<old_name>.age` to `<store_dir>/<new_name>.age`,
 /// creating parent dirs for the new name and pruning any now-empty ancestor
 /// directories of the old one.
@@ -116,6 +133,21 @@ pub(crate) fn move_entry(store_dir: &Path, old_name: &str, new_name: &str) -> Re
     fs::rename(&old_path, &new_path)
         .with_context(|| format!("renaming {} to {}", old_path.display(), new_path.display()))?;
     prune_empty_parents(&old_path, store_dir);
+    Ok(())
+}
+
+/// Copies `<store_dir>/<old_name>.age` to `<store_dir>/<new_name>.age`,
+/// creating parent dirs for the new name, leaving the old entry in place.
+pub(crate) fn copy_entry(store_dir: &Path, old_name: &str, new_name: &str) -> Result<()> {
+    let old_path = build_entry_path(store_dir, old_name)?;
+    if !old_path.exists() {
+        bail!("no entry named {old_name}");
+    }
+    let new_path = build_entry_path(store_dir, new_name)?;
+
+    fs::create_dir_all(new_path.parent().expect("entry paths always have a parent"))?;
+    fs::copy(&old_path, &new_path)
+        .with_context(|| format!("copying {} to {}", old_path.display(), new_path.display()))?;
     Ok(())
 }
 
@@ -315,6 +347,47 @@ mod tests {
     }
 
     #[test]
+    fn remove_group_deletes_all_entries_and_prunes_empty_dir() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "github/key1", "p1").unwrap();
+        put_entry(store.path(), &key, "github/key2", "p2").unwrap();
+
+        remove_group(store.path(), "github").unwrap();
+
+        assert!(!store.path().join("github").exists());
+        assert!(get_entry(store.path(), &key, "github/key1").is_err());
+        assert!(get_entry(store.path(), &key, "github/key2").is_err());
+    }
+
+    #[test]
+    fn remove_group_leaves_sibling_entries_alone() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "github/key1", "p1").unwrap();
+        put_entry(store.path(), &key, "apple", "p2").unwrap();
+
+        remove_group(store.path(), "github").unwrap();
+
+        assert_eq!(get_entry(store.path(), &key, "apple").unwrap(), "p2");
+    }
+
+    #[test]
+    fn remove_group_missing_group_errors() {
+        let store = tempfile::tempdir().unwrap();
+        assert!(remove_group(store.path(), "nope").is_err());
+    }
+
+    #[test]
+    fn remove_group_rejects_single_entry() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "github", "p1").unwrap();
+
+        assert!(remove_group(store.path(), "github").is_err());
+    }
+
+    #[test]
     fn move_entry_renames_and_preserves_content() {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
@@ -356,5 +429,37 @@ mod tests {
     fn move_entry_missing_source_errors() {
         let store = tempfile::tempdir().unwrap();
         assert!(move_entry(store.path(), "nope", "new").is_err());
+    }
+
+    #[test]
+    fn copy_entry_duplicates_and_preserves_original() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "old", "hunter2").unwrap();
+
+        copy_entry(store.path(), "old", "new").unwrap();
+
+        assert_eq!(get_entry(store.path(), &key, "old").unwrap(), "hunter2");
+        assert_eq!(get_entry(store.path(), &key, "new").unwrap(), "hunter2");
+    }
+
+    #[test]
+    fn copy_entry_creates_new_parent_dirs() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+        put_entry(store.path(), &key, "flat", "p1").unwrap();
+
+        copy_entry(store.path(), "flat", "github/nested").unwrap();
+
+        assert_eq!(
+            get_entry(store.path(), &key, "github/nested").unwrap(),
+            "p1"
+        );
+    }
+
+    #[test]
+    fn copy_entry_missing_source_errors() {
+        let store = tempfile::tempdir().unwrap();
+        assert!(copy_entry(store.path(), "nope", "new").is_err());
     }
 }

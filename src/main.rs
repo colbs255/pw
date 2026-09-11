@@ -43,6 +43,15 @@ enum Command {
     Find { pattern: String },
     /// Print a password entry
     Get { name: String },
+    /// Copy a password entry to a new name, keeping the original
+    #[command(visible_alias = "cp")]
+    Copy {
+        old_name: String,
+        new_name: String,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// Rename a password entry
     #[command(visible_alias = "rename")]
     Mv {
@@ -52,9 +61,14 @@ enum Command {
         #[arg(short, long)]
         force: bool,
     },
-    /// Remove a password entry
+    /// Remove a password entry, or a group of entries with --recursive
     #[command(visible_alias = "rm")]
-    Remove { name: String },
+    Remove {
+        name: String,
+        /// Remove a group of entries and everything under it
+        #[arg(short, long)]
+        recursive: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -70,11 +84,16 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name } => commands::get(&name),
+        Command::Copy {
+            old_name,
+            new_name,
+            force,
+        } => commands::copy(&old_name, &new_name, force),
         Command::Mv {
             old_name,
             new_name,
             force,
         } => commands::mv(&old_name, &new_name, force),
-        Command::Remove { name } => commands::remove(&name),
+        Command::Remove { name, recursive } => commands::remove(&name, recursive),
     }
 }
