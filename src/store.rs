@@ -147,6 +147,7 @@ mod tests {
 
         insert_entry(store.path(), &key, "github", "hunter2").unwrap();
 
+        assert!(store.path().join("github.age").exists());
         assert_eq!(get_entry(store.path(), &key, "github").unwrap(), "hunter2");
     }
 
@@ -187,11 +188,13 @@ mod tests {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
         insert_entry(store.path(), &key, "github/key1", "p1").unwrap();
+        assert!(store.path().join("github/key1.age").exists());
 
         remove_entry(store.path(), "github/key1").unwrap();
 
-        assert!(get_entry(store.path(), &key, "github/key1").is_err());
+        assert!(!store.path().join("github/key1.age").exists());
         assert!(!store.path().join("github").exists());
+        assert!(get_entry(store.path(), &key, "github/key1").is_err());
     }
 
     #[test]
