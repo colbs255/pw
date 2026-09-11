@@ -1,5 +1,6 @@
 mod commands;
 mod identity;
+mod password;
 mod paths;
 mod store;
 
@@ -22,6 +23,19 @@ enum Command {
         #[arg(short, long)]
         force: bool,
     },
+    /// Generate a random password and store it, overwriting any existing
+    /// entry with the same name
+    Generate {
+        name: String,
+        /// Length of the generated password
+        length: Option<usize>,
+        /// Exclude symbols, using only letters and digits
+        #[arg(short = 'n', long)]
+        no_symbols: bool,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// List all password entries
     #[command(visible_alias = "ls")]
     List,
@@ -38,6 +52,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Put { name, force } => commands::put(&name, force),
+        Command::Generate {
+            name,
+            length,
+            no_symbols,
+            force,
+        } => commands::generate(&name, length, no_symbols, force),
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name } => commands::get(&name),
