@@ -67,9 +67,14 @@ enum Command {
         #[arg(short, long)]
         force: bool,
     },
-    /// Remove a password entry
+    /// Remove a password entry, or a group of entries with --recursive
     #[command(visible_alias = "rm")]
-    Remove { name: String },
+    Remove {
+        name: String,
+        /// Remove a group of entries and everything under it
+        #[arg(short, long)]
+        recursive: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -95,6 +100,6 @@ fn main() -> Result<()> {
             new_name,
             force,
         } => commands::mv(&old_name, &new_name, force),
-        Command::Remove { name } => commands::remove(&name),
+        Command::Remove { name, recursive } => commands::remove(&name, recursive),
     }
 }
