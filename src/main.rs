@@ -49,6 +49,9 @@ enum Command {
         #[arg(short, long)]
         clipboard: bool,
     },
+    /// Copy a password entry to the clipboard, clearing it after 45s
+    #[command(visible_alias = "cp")]
+    Copy { name: String },
     /// Rename a password entry
     #[command(visible_alias = "rename")]
     Mv {
@@ -76,6 +79,7 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name, clipboard } => commands::get(&name, clipboard),
+        Command::Copy { name } => commands::copy(&name),
         Command::Mv {
             old_name,
             new_name,
