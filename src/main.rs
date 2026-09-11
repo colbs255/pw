@@ -49,6 +49,15 @@ enum Command {
         #[arg(short, long)]
         clipboard: bool,
     },
+    /// Copy a password entry to a new name, keeping the original
+    #[command(visible_alias = "cp")]
+    Copy {
+        old_name: String,
+        new_name: String,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// Rename a password entry
     #[command(visible_alias = "rename")]
     Mv {
@@ -81,6 +90,11 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name, clipboard } => commands::get(&name, clipboard),
+        Command::Copy {
+            old_name,
+            new_name,
+            force,
+        } => commands::copy(&old_name, &new_name, force),
         Command::Mv {
             old_name,
             new_name,

@@ -1,9 +1,9 @@
-use crate::clipboard::copy;
+use crate::clipboard::copy as copy_to_clipboard;
 use crate::password::generate_password;
 use crate::paths::{identity_path, store_dir};
 use crate::store::{
-    build_entry_path, find_entries, get_entry, list_entries, move_entry, put_entry, remove_entry,
-    remove_group,
+    build_entry_path, copy_entry, find_entries, get_entry, list_entries, move_entry, put_entry,
+    remove_entry, remove_group,
 };
 use anyhow::{Result, bail};
 use std::io::{self, Write};
@@ -77,10 +77,27 @@ pub(crate) fn find(pattern: &str) -> Result<()> {
 pub(crate) fn get(name: &str, clipboard: bool) -> Result<()> {
     let password = get_entry(&store_dir()?, &identity_path()?, name)?;
     if clipboard {
-        copy(&password)?;
+        copy_to_clipboard(&password)?;
     } else {
         println!("{password}");
     }
+    Ok(())
+}
+
+pub(crate) fn copy(old_name: &str, new_name: &str, force: bool) -> Result<()> {
+    let store_dir = store_dir()?;
+    let old_path = build_entry_path(&store_dir, old_name)?;
+    if !old_path.exists() {
+        bail!("no entry named {old_name}");
+    }
+    let new_path = build_entry_path(&store_dir, new_name)?;
+    if !confirm_overwrite(&new_path, new_name, force)? {
+        println!("aborted");
+        return Ok(());
+    }
+
+    copy_entry(&store_dir, old_name, new_name)?;
+    println!("copied {old_name} to {new_name}");
     Ok(())
 }
 
