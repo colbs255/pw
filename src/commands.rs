@@ -1,3 +1,4 @@
+use crate::clipboard::copy;
 use crate::password::generate_password;
 use crate::paths::{identity_path, store_dir};
 use crate::store::{
@@ -75,7 +76,7 @@ pub(crate) fn find(pattern: &str) -> Result<()> {
 pub(crate) fn get(name: &str, clipboard: bool) -> Result<()> {
     let password = get_entry(&store_dir()?, &identity_path()?, name)?;
     if clipboard {
-        crate::clipboard::copy(&password)?;
+        copy(&password)?;
     } else {
         println!("{password}");
     }
