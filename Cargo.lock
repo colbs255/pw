@@ -1153,6 +1153,7 @@ dependencies = [
  "anyhow",
  "clap",
  "directories",
+ "rand",
  "rpassword",
  "tempfile",
 ]
