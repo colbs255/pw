@@ -43,6 +43,15 @@ enum Command {
     Find { pattern: String },
     /// Print a password entry
     Get { name: String },
+    /// Rename a password entry
+    #[command(visible_alias = "rename")]
+    Mv {
+        old_name: String,
+        new_name: String,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// Remove a password entry
     #[command(visible_alias = "rm")]
     Remove { name: String },
@@ -61,6 +70,11 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name } => commands::get(&name),
+        Command::Mv {
+            old_name,
+            new_name,
+            force,
+        } => commands::mv(&old_name, &new_name, force),
         Command::Remove { name } => commands::remove(&name),
     }
 }
