@@ -17,6 +17,8 @@ struct Cli {
 enum Command {
     /// Insert a new password entry
     Insert { name: String },
+    /// List all password entries
+    List,
     /// Print a password entry
     Get { name: String },
     /// Remove a password entry
@@ -27,6 +29,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Insert { name } => commands::insert(&name),
+        Command::List => commands::list(),
         Command::Get { name } => commands::get(&name),
         Command::Remove { name } => commands::remove(&name),
     }

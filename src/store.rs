@@ -50,6 +50,37 @@ pub(crate) fn get_entry(store_dir: &Path, identity_path: &Path, name: &str) -> R
     String::from_utf8(plaintext).context("decrypted entry was not valid UTF-8")
 }
 
+/// Lists all entry names under the store directory, sorted alphabetically.
+pub(crate) fn list_entries(store_dir: &Path) -> Result<Vec<String>> {
+    let mut names = Vec::new();
+    if store_dir.exists() {
+        collect_entries(store_dir, store_dir, &mut names)?;
+    }
+    names.sort();
+    Ok(names)
+}
+
+fn collect_entries(store_dir: &Path, dir: &Path, names: &mut Vec<String>) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+        let path = entry?.path();
+        if path.is_dir() {
+            collect_entries(store_dir, &path, names)?;
+        } else if path.extension() == Some(std::ffi::OsStr::new("age")) {
+            let relative = path
+                .strip_prefix(store_dir)
+                .expect("entry is under store_dir")
+                .with_extension("");
+            let name = relative
+                .iter()
+                .map(|c| c.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/");
+            names.push(name);
+        }
+    }
+    Ok(())
+}
+
 /// Deletes `<store_dir>/<name>.age` and prunes any now-empty ancestor directories.
 pub(crate) fn remove_entry(store_dir: &Path, name: &str) -> Result<()> {
     let path = build_entry_path(store_dir, name)?;
@@ -138,6 +169,30 @@ mod tests {
 
         assert!(dir.exists());
         assert!(dir.join("key1.age").exists());
+    }
+
+    #[test]
+    fn list_entries_empty_when_store_dir_missing() {
+        let store = tempfile::tempdir().unwrap();
+        let missing = store.path().join("store");
+
+        assert_eq!(list_entries(&missing).unwrap(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn list_entries_returns_sorted_flat_and_nested_names() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+
+        insert_entry(store.path(), &key, "zebra", "p1").unwrap();
+        insert_entry(store.path(), &key, "github/key1", "p2").unwrap();
+        insert_entry(store.path(), &key, "github/key2", "p3").unwrap();
+        insert_entry(store.path(), &key, "apple", "p4").unwrap();
+
+        assert_eq!(
+            list_entries(store.path()).unwrap(),
+            vec!["apple", "github/key1", "github/key2", "zebra"]
+        );
     }
 
     #[test]
