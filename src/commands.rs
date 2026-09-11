@@ -1,9 +1,9 @@
 use crate::paths::{identity_path, store_dir};
-use crate::store::{build_entry_path, get_entry, insert_entry, list_entries, remove_entry};
+use crate::store::{build_entry_path, get_entry, list_entries, put_entry, remove_entry};
 use anyhow::{Result, bail};
 use std::io::{self, Write};
 
-pub(crate) fn insert(name: &str) -> Result<()> {
+pub(crate) fn put(name: &str) -> Result<()> {
     let store_dir = store_dir()?;
     let identity_path = identity_path()?;
     let path = build_entry_path(&store_dir, name)?;
@@ -21,7 +21,7 @@ pub(crate) fn insert(name: &str) -> Result<()> {
         password
     };
 
-    insert_entry(&store_dir, &identity_path, name, &password)?;
+    put_entry(&store_dir, &identity_path, name, &password)?;
     println!("saved {name}");
     Ok(())
 }

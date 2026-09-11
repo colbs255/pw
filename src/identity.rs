@@ -33,7 +33,7 @@ pub(crate) fn load_or_create_identity(path: &Path) -> Result<Identity> {
 pub(crate) fn load_identity(path: &Path) -> Result<Identity> {
     if !path.exists() {
         bail!(
-            "no key file at {}; insert an entry first to generate one",
+            "no key file at {}; put an entry first to generate one",
             path.display()
         );
     }

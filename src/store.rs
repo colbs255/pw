@@ -21,7 +21,7 @@ pub(crate) fn build_entry_path(store_dir: &Path, name: &str) -> Result<PathBuf> 
 
 /// Encrypts `password` under the local identity (generating one on first use)
 /// and writes it to `<store_dir>/<name>.age`, creating parent dirs as needed.
-pub(crate) fn insert_entry(
+pub(crate) fn put_entry(
     store_dir: &Path,
     identity_path: &Path,
     name: &str,
@@ -184,10 +184,10 @@ mod tests {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
 
-        insert_entry(store.path(), &key, "zebra", "p1").unwrap();
-        insert_entry(store.path(), &key, "github/key1", "p2").unwrap();
-        insert_entry(store.path(), &key, "github/key2", "p3").unwrap();
-        insert_entry(store.path(), &key, "apple", "p4").unwrap();
+        put_entry(store.path(), &key, "zebra", "p1").unwrap();
+        put_entry(store.path(), &key, "github/key1", "p2").unwrap();
+        put_entry(store.path(), &key, "github/key2", "p3").unwrap();
+        put_entry(store.path(), &key, "apple", "p4").unwrap();
 
         assert_eq!(
             list_entries(store.path()).unwrap(),
@@ -196,23 +196,23 @@ mod tests {
     }
 
     #[test]
-    fn insert_then_get_roundtrip() {
+    fn put_then_get_roundtrip() {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
 
-        insert_entry(store.path(), &key, "github", "hunter2").unwrap();
+        put_entry(store.path(), &key, "github", "hunter2").unwrap();
 
         assert!(store.path().join("github.age").exists());
         assert_eq!(get_entry(store.path(), &key, "github").unwrap(), "hunter2");
     }
 
     #[test]
-    fn insert_nested_entries_are_independent() {
+    fn put_nested_entries_are_independent() {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
 
-        insert_entry(store.path(), &key, "github/key1", "p1").unwrap();
-        insert_entry(store.path(), &key, "github/key2", "p2").unwrap();
+        put_entry(store.path(), &key, "github/key1", "p1").unwrap();
+        put_entry(store.path(), &key, "github/key2", "p2").unwrap();
 
         assert_eq!(get_entry(store.path(), &key, "github/key1").unwrap(), "p1");
         assert_eq!(get_entry(store.path(), &key, "github/key2").unwrap(), "p2");
@@ -242,7 +242,7 @@ mod tests {
     fn remove_deletes_entry_and_prunes_empty_dir() {
         let store = tempfile::tempdir().unwrap();
         let key = store.path().join("key.txt");
-        insert_entry(store.path(), &key, "github/key1", "p1").unwrap();
+        put_entry(store.path(), &key, "github/key1", "p1").unwrap();
         assert!(store.path().join("github/key1.age").exists());
 
         remove_entry(store.path(), "github/key1").unwrap();
