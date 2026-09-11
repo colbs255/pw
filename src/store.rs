@@ -60,6 +60,16 @@ pub(crate) fn list_entries(store_dir: &Path) -> Result<Vec<String>> {
     Ok(names)
 }
 
+/// Lists entry names under the store directory whose name contains `pattern`
+/// (case-insensitive), sorted alphabetically.
+pub(crate) fn find_entries(store_dir: &Path, pattern: &str) -> Result<Vec<String>> {
+    let pattern = pattern.to_lowercase();
+    Ok(list_entries(store_dir)?
+        .into_iter()
+        .filter(|name| name.to_lowercase().contains(&pattern))
+        .collect())
+}
+
 fn collect_entries(store_dir: &Path, dir: &Path, names: &mut Vec<String>) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
         let path = entry?.path();
@@ -192,6 +202,35 @@ mod tests {
         assert_eq!(
             list_entries(store.path()).unwrap(),
             vec!["apple", "github/key1", "github/key2", "zebra"]
+        );
+    }
+
+    #[test]
+    fn find_entries_matches_substring_case_insensitively() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+
+        put_entry(store.path(), &key, "zebra", "p1").unwrap();
+        put_entry(store.path(), &key, "github/key1", "p2").unwrap();
+        put_entry(store.path(), &key, "github/key2", "p3").unwrap();
+        put_entry(store.path(), &key, "apple", "p4").unwrap();
+
+        assert_eq!(
+            find_entries(store.path(), "GitHub").unwrap(),
+            vec!["github/key1", "github/key2"]
+        );
+    }
+
+    #[test]
+    fn find_entries_empty_when_no_match() {
+        let store = tempfile::tempdir().unwrap();
+        let key = store.path().join("key.txt");
+
+        put_entry(store.path(), &key, "apple", "p1").unwrap();
+
+        assert_eq!(
+            find_entries(store.path(), "nope").unwrap(),
+            Vec::<String>::new()
         );
     }
 

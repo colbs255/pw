@@ -1,5 +1,7 @@
 use crate::paths::{identity_path, store_dir};
-use crate::store::{build_entry_path, get_entry, list_entries, put_entry, remove_entry};
+use crate::store::{
+    build_entry_path, find_entries, get_entry, list_entries, put_entry, remove_entry,
+};
 use anyhow::{Result, bail};
 use std::io::{self, Write};
 
@@ -28,6 +30,13 @@ pub(crate) fn put(name: &str, force: bool) -> Result<()> {
 
 pub(crate) fn list() -> Result<()> {
     for name in list_entries(&store_dir()?)? {
+        println!("{name}");
+    }
+    Ok(())
+}
+
+pub(crate) fn find(pattern: &str) -> Result<()> {
+    for name in find_entries(&store_dir()?, pattern)? {
         println!("{name}");
     }
     Ok(())

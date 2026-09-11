@@ -25,6 +25,8 @@ enum Command {
     /// List all password entries
     #[command(visible_alias = "ls")]
     List,
+    /// List password entries whose name contains a pattern
+    Find { pattern: String },
     /// Print a password entry
     Get { name: String },
     /// Remove a password entry
@@ -37,6 +39,7 @@ fn main() -> Result<()> {
     match cli.command {
         Command::Put { name, force } => commands::put(&name, force),
         Command::List => commands::list(),
+        Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name } => commands::get(&name),
         Command::Remove { name } => commands::remove(&name),
     }
