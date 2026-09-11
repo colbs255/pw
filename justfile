@@ -12,10 +12,13 @@ test:
 fmt:
     cargo fmt
 
+fmt-check:
+    cargo fmt --check
+
 lint:
     cargo clippy --all-targets --all-features -- -D warnings
 
-check: fmt lint test
+check: fmt-check lint test
 
 clean:
     cargo clean

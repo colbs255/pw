@@ -17,5 +17,11 @@ jobs:
 
       - uses: nixbuild/nix-quick-install-action@v35
 
+      - name: Format check
+        run: nix develop --command just fmt-check
+
+      - name: Lint
+        run: nix develop --command just lint
+
       - name: Test
         run: nix develop --command just test
