@@ -16,7 +16,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Store a password entry, overwriting any existing one with the same name
-    Put { name: String },
+    Put {
+        name: String,
+        /// Overwrite an existing entry without confirmation
+        #[arg(short, long)]
+        force: bool,
+    },
     /// List all password entries
     #[command(visible_alias = "ls")]
     List,
@@ -30,7 +35,7 @@ enum Command {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Put { name } => commands::put(&name),
+        Command::Put { name, force } => commands::put(&name, force),
         Command::List => commands::list(),
         Command::Get { name } => commands::get(&name),
         Command::Remove { name } => commands::remove(&name),
