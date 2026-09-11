@@ -54,7 +54,7 @@ fn insert(name: &str) -> Result<()> {
     let ciphertext =
         age::encrypt(&identity.to_public(), password.as_bytes()).context("encrypting entry")?;
 
-    fs::create_dir_all(store_dir()?)?;
+    fs::create_dir_all(path.parent().expect("entry paths always have a parent"))?;
     fs::write(&path, ciphertext).with_context(|| format!("writing {}", path.display()))?;
     println!("saved {name}");
     Ok(())
@@ -84,8 +84,21 @@ fn remove(name: &str) -> Result<()> {
         return Ok(());
     }
     fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
+    prune_empty_parents(&path, &store_dir()?);
     println!("removed {name}");
     Ok(())
+}
+
+/// Removes now-empty ancestor directories of a just-deleted entry, up to (not
+/// including) the store root, so nested entries don't leave empty folders behind.
+fn prune_empty_parents(path: &Path, store_dir: &Path) {
+    let mut dir = path.parent();
+    while let Some(d) = dir {
+        if d == store_dir || fs::remove_dir(d).is_err() {
+            break;
+        }
+        dir = d.parent();
+    }
 }
 
 fn confirm(prompt: &str) -> Result<bool> {
@@ -159,10 +172,19 @@ fn parse_identity_file(path: &Path) -> Result<Identity> {
 }
 
 fn entry_path(name: &str) -> Result<PathBuf> {
-    if name.is_empty() || name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+    if name.is_empty() {
         bail!("invalid entry name: {name:?}");
     }
-    Ok(store_dir()?.join(format!("{name}.age")))
+
+    let mut path = store_dir()?;
+    for segment in name.split('/') {
+        if segment.is_empty() || segment == "." || segment == ".." || segment.contains('\\') {
+            bail!("invalid entry name: {name:?}");
+        }
+        path.push(segment);
+    }
+    path.set_extension("age");
+    Ok(path)
 }
 
 fn store_dir() -> Result<PathBuf> {
