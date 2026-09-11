@@ -18,10 +18,12 @@ enum Command {
     /// Insert a new password entry
     Insert { name: String },
     /// List all password entries
+    #[command(visible_alias = "ls")]
     List,
     /// Print a password entry
     Get { name: String },
     /// Remove a password entry
+    #[command(visible_alias = "rm")]
     Remove { name: String },
 }
 
