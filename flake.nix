@@ -20,7 +20,6 @@
             rustfmt
             rust-analyzer
             just
-            pkg-config
           ];
 
           RUST_BACKTRACE = "1";
