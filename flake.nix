@@ -12,6 +12,13 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
+        packages.default = pkgs.callPackage ./nix/package.nix { };
+
+        apps.default = {
+          type = "app";
+          program = "${self.packages.${system}.default}/bin/pw";
+        };
+
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             rustc
