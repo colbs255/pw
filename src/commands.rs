@@ -1,12 +1,16 @@
+use crate::identity::restrict_permissions;
 use crate::password::generate_password;
 use crate::paths::{identity_path, store_dir};
 use crate::store::{
     build_entry_path, copy_entry, find_entries, get_entry, list_entries, move_entry, put_entry,
     remove_entry, remove_group,
 };
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
+use std::env;
+use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
+use std::process::Command;
 
 const DEFAULT_GENERATED_LENGTH: usize = 25;
 
@@ -76,6 +80,46 @@ pub(crate) fn find(pattern: &str) -> Result<()> {
 pub(crate) fn get(name: &str) -> Result<()> {
     let password = get_entry(&store_dir()?, &identity_path()?, name)?;
     println!("{password}");
+    Ok(())
+}
+
+pub(crate) fn edit(name: &str) -> Result<()> {
+    let store_dir = store_dir()?;
+    let identity_path = identity_path()?;
+    let path = build_entry_path(&store_dir, name)?;
+
+    let original = if path.exists() {
+        get_entry(&store_dir, &identity_path, name)?
+    } else {
+        String::new()
+    };
+
+    let editor = env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+
+    let tmp = tempfile::NamedTempFile::new().context("creating temp file")?;
+    restrict_permissions(tmp.path())?;
+    fs::write(tmp.path(), &original)
+        .with_context(|| format!("writing {}", tmp.path().display()))?;
+
+    let status = Command::new(&editor)
+        .arg(tmp.path())
+        .status()
+        .with_context(|| format!("running editor {editor}"))?;
+    if !status.success() {
+        bail!("editor exited with an error; entry not saved");
+    }
+
+    let edited = fs::read_to_string(tmp.path())
+        .with_context(|| format!("reading {}", tmp.path().display()))?;
+    let edited = edited.strip_suffix('\n').unwrap_or(&edited);
+
+    if edited == original {
+        println!("no changes");
+        return Ok(());
+    }
+
+    put_entry(&store_dir, &identity_path, name, edited)?;
+    println!("saved {name}");
     Ok(())
 }
 

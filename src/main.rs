@@ -43,6 +43,8 @@ enum Command {
     Find { pattern: String },
     /// Print a password entry
     Get { name: String },
+    /// Edit a password entry in $EDITOR, creating it if it doesn't exist
+    Edit { name: String },
     /// Copy a password entry to a new name, keeping the original
     #[command(visible_alias = "cp")]
     Copy {
@@ -84,6 +86,7 @@ fn main() -> Result<()> {
         Command::List => commands::list(),
         Command::Find { pattern } => commands::find(&pattern),
         Command::Get { name } => commands::get(&name),
+        Command::Edit { name } => commands::edit(&name),
         Command::Copy {
             old_name,
             new_name,
