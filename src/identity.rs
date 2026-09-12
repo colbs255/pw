@@ -53,14 +53,14 @@ fn parse_identity_file(path: &Path) -> Result<Identity> {
 }
 
 #[cfg(unix)]
-fn restrict_permissions(path: &Path) -> Result<()> {
+pub(crate) fn restrict_permissions(path: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
     Ok(())
 }
 
 #[cfg(not(unix))]
-fn restrict_permissions(_path: &Path) -> Result<()> {
+pub(crate) fn restrict_permissions(_path: &Path) -> Result<()> {
     Ok(())
 }
 

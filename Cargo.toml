@@ -11,6 +11,4 @@ clap = { version = "4.6.6", features = ["derive"] }
 directories = "6.0.0"
 rand = "0.8.8"
 rpassword = "7.5.4"
-
-[dev-dependencies]
 tempfile = "3.27.0"
